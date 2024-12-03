@@ -1,4 +1,4 @@
-module github.com/magodo/azfind
+module github.com/magodo/az-whose
 
 go 1.23.3
 

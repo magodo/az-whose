@@ -50,8 +50,14 @@ func (c Client) List(ctx context.Context, filter *Filter) (Events, error) {
 			return nil, fmt.Errorf("failed to advance page: %v", err)
 		}
 		for _, v := range page.Value {
-			if v != nil {
-				events = append(events, *v)
+			if v != nil && v.ResourceID != nil {
+				ok, err := filter.Match(*v.ResourceID)
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					events = append(events, *v)
+				}
 			}
 		}
 	}

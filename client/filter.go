@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/magodo/armid"
 )
 
 type Filter struct {
@@ -85,4 +87,31 @@ func (f Filter) String() string {
 	}
 
 	return strings.Join(segs, " and ")
+}
+
+// Match is used to match the resource id of the event being returned by the List call.
+// This is because some of the events returns resources beyond.
+// E.g. Querying by resourceTypes of resource group can return resources within it.
+//
+//	(It seems the resourceTypes filter applies to the authZ scope of the operation).
+func (f Filter) Match(resourceId string) (bool, error) {
+	if f.ResourceId == "" && len(f.ResourceTypes) == 0 {
+		return true, nil
+	}
+
+	if f.ResourceId != "" && strings.EqualFold(f.ResourceId, resourceId) {
+		return true, nil
+	}
+
+	for _, rt := range f.ResourceTypes {
+		id, err := armid.ParseResourceId(resourceId)
+		if err != nil {
+			return false, fmt.Errorf("parsing resource id %q: %v", resourceId, err)
+		}
+		if strings.EqualFold(id.TypeString(), rt) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

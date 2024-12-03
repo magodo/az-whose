@@ -18,8 +18,8 @@ type EventGroup struct {
 
 type Events []armmonitor.EventData
 
-// Filter only keep the events whose `.status.Value` equals to "Succeeded"
-func (events Events) Filter() Events {
+// Succeeded only keep the events whose `.status.Value` equals to "Succeeded"
+func (events Events) Succeeded() Events {
 	var out Events
 
 	for _, ev := range events {
