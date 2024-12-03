@@ -26,7 +26,7 @@ var (
 func main() {
 	app := &cli.App{
 		Name:  "whose",
-		Usage: "Find out the owner of the resources by inspecting the activity logs",
+		Usage: "Find out the owner of Azure resources by inspecting the activity logs",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "subscription-id",
