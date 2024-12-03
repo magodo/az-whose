@@ -18,11 +18,12 @@ type EventGroup struct {
 
 type Events []armmonitor.EventData
 
-// Succeeded only keep the events whose `.status.Value` equals to "Succeeded"
-func (events Events) Succeeded() Events {
-	var out Events
+// Group groups events by resource id with events sorted by timestamp.
+func (events Events) Group() EventGroups {
+	out := EventGroups{}
 
 	for _, ev := range events {
+		// Only keep the events whose `.status.Value` equals to "Succeeded"
 		if ev.Status == nil {
 			continue
 		}
@@ -32,20 +33,11 @@ func (events Events) Succeeded() Events {
 		if !strings.EqualFold(*ev.Status.Value, "Succeeded") {
 			continue
 		}
-		out = append(out, ev)
-	}
-	return out
-}
 
-// Group groups events by resource id (upper cased to avoid casing problems).
-func (events Events) Group() EventGroups {
-	out := EventGroups{}
-
-	for _, ev := range events {
+		// Normalize the resource id to eliminate the casing issue (e.g. resourceGroups vs resourcegroups)
 		if ev.ResourceID == nil {
 			continue
 		}
-		// The ToUpper here is intentional to eliminate the casing issue (e.g. resourceGroups vs resourcegroups)
 		id := strings.ToUpper(*ev.ResourceID)
 		grp, ok := out[id]
 		if !ok {

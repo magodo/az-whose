@@ -116,7 +116,7 @@ func main() {
 				return fmt.Errorf("failed to list events: %v", err)
 			}
 
-			groups := events.Succeeded().Group()
+			groups := events.Group()
 
 			results := map[string]Result{}
 			for id, grp := range groups {
