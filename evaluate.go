@@ -15,7 +15,7 @@ type Aggregation struct {
 }
 
 type CallCount struct {
-	Caller string
+	Caller client.EventCaller
 	Count  int
 }
 
@@ -29,7 +29,7 @@ func (c CallCounts) Less(i int, j int) bool {
 	if c[i].Count == c[j].Count {
 		return c[i].Count < c[j].Count
 	}
-	return c[i].Caller < c[j].Caller
+	return c[i].Caller.CallerIdentifier() < c[j].Caller.CallerIdentifier()
 }
 
 func (c CallCounts) Swap(i int, j int) {
@@ -41,16 +41,12 @@ func aggregateGroup(grp client.EventGroup) Aggregation {
 		Id: grp.Id,
 	}
 
-	writeCallCounts := map[string]int{}
-	actionCallCounts := map[string]int{}
-	deleteCallCounts := map[string]int{}
+	writeCallCounts := map[client.EventCaller]int{}
+	actionCallCounts := map[client.EventCaller]int{}
+	deleteCallCounts := map[client.EventCaller]int{}
 
 	for i, ev := range grp.Events {
-		if ev.Caller == nil {
-			continue
-		}
-		caller := *ev.Caller
-
+		caller := ev.GetCaller()
 		if ev.OperationName == nil || ev.OperationName.Value == nil {
 			continue
 		}
@@ -65,9 +61,9 @@ func aggregateGroup(grp client.EventGroup) Aggregation {
 			if i == len(grp.Events)-1 {
 				deleteCallCounts[caller] = deleteCallCounts[caller] + 1
 			} else {
-				writeCallCounts = map[string]int{}
-				actionCallCounts = map[string]int{}
-				deleteCallCounts = map[string]int{}
+				writeCallCounts = map[client.EventCaller]int{}
+				actionCallCounts = map[client.EventCaller]int{}
+				deleteCallCounts = map[client.EventCaller]int{}
 			}
 		default:
 			continue
@@ -98,10 +94,10 @@ type Result struct {
 }
 
 type CallStats struct {
-	Caller  string          `json:"caller"`
-	Score   int             `json:"score"`
-	Total   int             `json:"total"`
-	Details CallStatsDetail `json:"details"`
+	Caller  client.EventCaller `json:"caller"`
+	Score   int                `json:"score"`
+	Total   int                `json:"total"`
+	Details CallStatsDetail    `json:"details"`
 }
 
 type CallStatsDetail struct {
@@ -136,7 +132,7 @@ func Evaluate(grp client.EventGroup, opt EvaluateOption) Result {
 
 	total := opt.WriteWeight*writeCnt + opt.ActionWeight*actionCnt + opt.DeleteWeight*deleteCnt
 
-	callStatMap := map[string]*CallStats{}
+	callStatMap := map[client.EventCaller]*CallStats{}
 
 	for _, cc := range agg.Writes {
 		stat, ok := callStatMap[cc.Caller]
@@ -195,7 +191,7 @@ func Evaluate(grp client.EventGroup, opt EvaluateOption) Result {
 		if calls[i].Details.Delete != calls[j].Details.Delete {
 			return calls[i].Details.Delete > calls[j].Details.Delete
 		}
-		return calls[i].Caller > calls[j].Caller
+		return calls[i].Caller.CallerIdentifier() > calls[j].Caller.CallerIdentifier()
 	})
 
 	return Result{

@@ -19,7 +19,7 @@ type Client struct {
 	actvt *armmonitor.ActivityLogsClient
 
 	msgraph          *msgraphsdk.GraphServiceClient
-	msgraphCache     map[string]string
+	msgraphCache     map[string]AppInfo
 	msgraphCacheLock sync.RWMutex
 }
 
@@ -51,36 +51,62 @@ func New(subscriptionId string, credential azcore.TokenCredential, option *arm.C
 	return &Client{
 		actvt:        actvtClient,
 		msgraph:      msgraphClient,
-		msgraphCache: map[string]string{},
+		msgraphCache: map[string]AppInfo{},
 	}, nil
 }
 
-func (c *Client) GetAppNameById(ctx context.Context, id string) (string, error) {
+type AppInfo struct {
+	Name   string
+	Owners []string
+}
+
+// GetAppInfo gets the AAD application's information by its obejct id.
+func (c *Client) GetAppInfo(ctx context.Context, id string) (*AppInfo, error) {
 	c.msgraphCacheLock.RLock()
 	if v, ok := c.msgraphCache[id]; ok {
 		c.msgraphCacheLock.RUnlock()
-		return v, nil
+		return &v, nil
 	}
 	c.msgraphCacheLock.RUnlock()
 
 	c.msgraphCacheLock.Lock()
 	defer c.msgraphCacheLock.Unlock()
-	result, err := c.msgraph.DirectoryObjects().ByDirectoryObjectId(id).Get(ctx, nil)
+	object, err := c.msgraph.DirectoryObjects().ByDirectoryObjectId(id).Get(ctx, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+
 	var name string
-	sp, ok := result.(*models.ServicePrincipal)
+	sp, ok := object.(*models.ServicePrincipal)
 	if !ok {
-		return "", fmt.Errorf("AAD object %q is not a service principal", id)
+		return nil, fmt.Errorf("AAD object %q is not a service principal", id)
 	}
 	pname := sp.GetDisplayName()
 	if pname == nil {
-		return "", fmt.Errorf("display name of %q is nil", id)
+		return nil, fmt.Errorf("display name of %q is nil", id)
 	}
 	name = *pname
-	c.msgraphCache[id] = name
-	return name, nil
+
+	var owners []string
+	for _, owner := range sp.GetOwners() {
+		puid := owner.GetId()
+		if puid == nil {
+			continue
+		}
+		user, err := c.msgraph.Users().ByUserId(*puid).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		pmail := user.GetMail()
+		if pmail == nil {
+			continue
+		}
+		owners = append(owners, *pmail)
+	}
+
+	info := AppInfo{Name: name, Owners: owners}
+	c.msgraphCache[id] = info
+	return &info, nil
 }
 
 // List lists the activity events, with resource id further filtered by the filter option,
@@ -103,17 +129,35 @@ func (c *Client) List(ctx context.Context, filter *Filter) (Events, error) {
 					return nil, err
 				}
 
+				var caller EventCaller
 				if uuid.Validate(*v.Caller) == nil {
-					name, err := c.GetAppNameById(ctx, *v.Caller)
-					if err != nil {
-						return nil, err
+					// In case the caller is a UUID, it represents it is a service principal.
+					// We'll try to find the application by this UUID (AAD object ID).
+					appCaller := EventCallerApp{
+						Type:     CallerTypeApp,
+						ObjectId: *v.Caller,
 					}
-					caller := fmt.Sprintf("%s (%s)", name, *v.Caller)
-					v.Caller = &caller
+					appInfo, err := c.GetAppInfo(ctx, *v.Caller)
+					if err == nil {
+						appCaller.Name = appInfo.Name
+						appCaller.Owners = appInfo.Owners
+					}
+					caller = &appCaller
+				} else {
+					// Otherwise, it represents a user.
+					caller = &EventCallerUser{
+						Type: CallerTypeUser,
+						Name: *v.Caller,
+					}
+				}
+
+				event := EventData{
+					EventData: *v,
+					caller:    caller,
 				}
 
 				if ok {
-					events = append(events, *v)
+					events = append(events, event)
 				}
 			}
 		}

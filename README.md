@@ -8,7 +8,7 @@ Azure users have no easy way to identify the *owner* of a certain resource/resou
 
 > NOTE: The term "owner" used here and below means the user/application that created the resource, or frequently send API to operate this resource.
 
-A tool to anwer the basic question like "who is the owner of a resource group" should have been there long ago.
+A tool to answer the basic question like "who is the owner of a resource group" should have been there long ago.
 
 ## How
 
@@ -31,7 +31,10 @@ This tool follows the above practice, and provide an easy way to do the inspecti
     "id": "/SUBSCRIPTIONS/<sub-id>/RESOURCEGROUPS/<rg-name>",
     "stats": [
       {
-        "caller": "magodo-terraform (<object-id>)",
+        "caller": {
+          "type": "user",
+          "name": "magodo@foo.com"
+        },
         "score": 10,
         "total": 20,
         "details": {
@@ -41,7 +44,12 @@ This tool follows the above practice, and provide an easy way to do the inspecti
         }
       },
       {
-        "caller": "magodo@foo.com",
+        "caller": {
+          "type": "app",
+          "name": "magodo-app",
+          "object_id": "xxxx",
+          "owners": ["magodo@foo.com"]
+        },
         "score": 10,
         "total": 20,
         "details": {
@@ -56,7 +64,10 @@ This tool follows the above practice, and provide an easy way to do the inspecti
     "id": "/SUBSCRIPTIONS/<sub-id>/RESOURCEGROUPS/<rg-name>/PROVIDERS/MICROSOFT.CONTAINERREGISTRY/REGISTRIES/<acr-name>",
     "stats": [
       {
-        "caller": "magodo@foo.com",
+        "caller": {
+          "type": "user",
+          "name": "magodo@foo.com"
+        },
         "score": 32,
         "total": 43,
         "details": {
@@ -66,7 +77,12 @@ This tool follows the above practice, and provide an easy way to do the inspecti
         }
       },
       {
-        "caller": "magodo-terraform (<object-id>)",
+        "caller": {
+          "type": "app",
+          "name": "magodo-app",
+          "object_id": "xxxx",
+          "owners": ["magodo@foo.com"]
+        },
         "score": 11,
         "total": 43,
         "details": {
