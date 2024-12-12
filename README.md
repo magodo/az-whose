@@ -17,7 +17,7 @@ By searching the answer to this basic question, the search engine brings me to [
 This tool follows the above practice, and provide an easy way to do the inspection for you. The stragety used here is as simple as below:
 
 - Users specify either a resource id, or a filter with resource group name or/and resource types, to search for the activity logs (within 90 days)
-- Aggregate the logs by resource id, operator/caller, operation type (i.e. write, action, delete)
+- Aggregate the logs by resource id, operator/caller, operation type (i.e. write, action, delete). Note that if there is a "delete" and it is not the last operation, it will reset all the operation record detected so far. The sanity here is to only record the latest lifecycle of this resource. If you'd like to keep the operations including the delete, use option `--keep-delete`. 
 - Each operation type has a weight, which will be used to factor with the count of the operations, to get a confidence score
 - For each resource, the operators are sorted with the confidence score
 - Print the result 
