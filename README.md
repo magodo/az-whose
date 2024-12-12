@@ -25,7 +25,7 @@ This tool follows the above practice, and provide an easy way to do the inspecti
 ## Example
 
 ```shell
-❯ az-whose -s <sub-id> --resource-group-name <rg-name> | jq .
+❯ az-whose -f -s <sub-id> --resource-group-name <rg-name>
 {
   "/SUBSCRIPTIONS/<sub-id>/RESOURCEGROUPS/<rg-name>": {
     "id": "/SUBSCRIPTIONS/<sub-id>/RESOURCEGROUPS/<rg-name>",

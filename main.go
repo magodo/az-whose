@@ -21,6 +21,7 @@ var (
 	flagWriteWeight       int
 	flagActionWeight      int
 	flagDeleteWeight      int
+	flagFormat            bool
 )
 
 func main() {
@@ -67,6 +68,13 @@ func main() {
 				Usage:       `The score weight of one "delete" operation on the resource`,
 				Value:       10,
 				Destination: &flagDeleteWeight,
+			},
+			&cli.BoolFlag{
+				Name:        "format",
+				Usage:       `Indent format the output`,
+				Aliases:     []string{"f"},
+				Value:       false,
+				Destination: &flagFormat,
 			},
 		},
 		Before: func(ctx *cli.Context) error {
@@ -127,7 +135,12 @@ func main() {
 				})
 			}
 
-			b, err := json.Marshal(results)
+			var b []byte
+			if flagFormat {
+				b, err = json.MarshalIndent(results, "", "  ")
+			} else {
+				b, err = json.Marshal(results)
+			}
 			if err != nil {
 				return fmt.Errorf("failed to marshal the final result: %v", err)
 			}
