@@ -83,28 +83,41 @@ func (c *Client) GetAppInfo(ctx context.Context, id string) (*AppInfo, error) {
 	}
 	pname := sp.GetDisplayName()
 	if pname == nil {
-		return nil, fmt.Errorf("display name of %q is nil", id)
+		return nil, fmt.Errorf("display name of %q (aad object id) is nil", id)
 	}
 	name = *pname
 
-	var owners []string
-	for _, owner := range sp.GetOwners() {
-		puid := owner.GetId()
-		if puid == nil {
-			continue
-		}
-		user, err := c.msgraph.Users().ByUserId(*puid).Get(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
+	appId := sp.GetAppId()
+	if appId == nil {
+		return nil, fmt.Errorf("application id of %q (aad object id) is nil", id)
+	}
+
+	appInfo, err := c.msgraph.ApplicationsWithAppId(appId).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	appObjectId := appInfo.GetId()
+	if appObjectId == nil {
+		return nil, fmt.Errorf("application object id of %q (add object id) is nil", id)
+	}
+
+	owners, err := c.msgraph.Applications().ByApplicationId(*appObjectId).Owners().Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var ownerEmails []string
+	for _, owner := range owners.GetValue() {
+		user := owner.(*models.User)
 		pmail := user.GetMail()
 		if pmail == nil {
 			continue
 		}
-		owners = append(owners, *pmail)
+		ownerEmails = append(ownerEmails, *pmail)
 	}
 
-	info := AppInfo{Name: name, Owners: owners}
+	info := AppInfo{Name: name, Owners: ownerEmails}
 	c.msgraphCache[id] = info
 	return &info, nil
 }
