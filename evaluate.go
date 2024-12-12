@@ -36,7 +36,7 @@ func (c CallCounts) Swap(i int, j int) {
 	c[i], c[j] = c[j], c[i]
 }
 
-func aggregateGroup(grp client.EventGroup) Aggregation {
+func aggregateGroup(grp client.EventGroup, keepDelete bool) Aggregation {
 	agg := Aggregation{
 		Id: grp.Id,
 	}
@@ -56,14 +56,18 @@ func aggregateGroup(grp client.EventGroup) Aggregation {
 		case strings.HasSuffix(*ev.OperationName.Value, "/write"):
 			writeCallCounts[caller] = writeCallCounts[caller] + 1
 		case strings.HasSuffix(*ev.OperationName.Value, "/delete"):
-			// In case we get a delete operation, if this is the last operation, we record it as the operations.
-			// Otherwise, it indicates the resource is being recreated, in this case we'll reset the counters.
-			if i == len(grp.Events)-1 {
+			if keepDelete {
 				deleteCallCounts[caller] = deleteCallCounts[caller] + 1
 			} else {
-				writeCallCounts = map[client.EventCaller]int{}
-				actionCallCounts = map[client.EventCaller]int{}
-				deleteCallCounts = map[client.EventCaller]int{}
+				// In case we get a delete operation, if this is the last operation, we record it as the operations.
+				// Otherwise, it indicates the resource is being recreated, in this case we'll reset the counters.
+				if i == len(grp.Events)-1 {
+					deleteCallCounts[caller] = deleteCallCounts[caller] + 1
+				} else {
+					writeCallCounts = map[client.EventCaller]int{}
+					actionCallCounts = map[client.EventCaller]int{}
+					deleteCallCounts = map[client.EventCaller]int{}
+				}
 			}
 		default:
 			continue
@@ -110,10 +114,11 @@ type EvaluateOption struct {
 	WriteWeight  int
 	ActionWeight int
 	DeleteWeight int
+	KeepDelete   bool
 }
 
 func Evaluate(grp client.EventGroup, opt EvaluateOption) Result {
-	agg := aggregateGroup(grp)
+	agg := aggregateGroup(grp, opt.KeepDelete)
 
 	var writeCnt int
 	for _, cc := range agg.Writes {

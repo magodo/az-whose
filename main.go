@@ -22,6 +22,7 @@ var (
 	flagActionWeight      int
 	flagDeleteWeight      int
 	flagFormat            bool
+	flagKeepDelete        bool
 )
 
 func main() {
@@ -75,6 +76,12 @@ func main() {
 				Aliases:     []string{"f"},
 				Value:       false,
 				Destination: &flagFormat,
+			},
+			&cli.BoolFlag{
+				Name:        "keep-delete",
+				Usage:       "Keep DELETE operations in the stats, instead of resetting every record before then",
+				Value:       false,
+				Destination: &flagKeepDelete,
 			},
 		},
 		Before: func(ctx *cli.Context) error {
@@ -132,6 +139,7 @@ func main() {
 					WriteWeight:  flagWriteWeight,
 					ActionWeight: flagActionWeight,
 					DeleteWeight: flagDeleteWeight,
+					KeepDelete:   flagKeepDelete,
 				})
 			}
 
